@@ -13,12 +13,15 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor for adding auth token
+// Optional API key for third-party access
+const API_KEY = import.meta.env.VITE_API_KEY;
+
+// Request interceptor for adding optional API key
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Add API key if available (for optional third-party authentication)
+    if (API_KEY) {
+      config.headers['X-API-Key'] = API_KEY;
     }
     return config;
   },
@@ -32,17 +35,15 @@ apiClient.interceptors.response.use(
     const { response } = error;
     const status = response?.status;
 
-    if (status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/';
+    if (status === 429) {
+      // Rate limit exceeded
       toast({
-        title: 'Session expired',
-        description: 'Please login again to continue.',
+        title: 'Too many requests',
+        description: 'Please wait a moment before trying again.',
         variant: 'destructive',
       });
     } else if (status === 403) {
-      // Forbidden
+      // Forbidden (likely API key issue if using one)
       toast({
         title: 'Access denied',
         description: 'You do not have permission to perform this action.',
@@ -68,7 +69,7 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function for making authenticated API requests
+// Helper function for making API requests
 export const makeRequest = async <T>(config: AxiosRequestConfig): Promise<T> => {
   try {
     const response = await apiClient(config);
@@ -78,3 +79,4 @@ export const makeRequest = async <T>(config: AxiosRequestConfig): Promise<T> => 
     throw error;
   }
 };
+

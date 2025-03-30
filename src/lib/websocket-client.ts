@@ -1,6 +1,4 @@
 
-import { toast } from '@/hooks/use-toast';
-
 export type WebSocketMessage = {
   type: string;
   payload: any;
@@ -20,16 +18,22 @@ class WebSocketClient {
   private url: string;
 
   constructor() {
+    // Updated WebSocket URLs to match your backend endpoints
     this.url = import.meta.env.VITE_WS_URL || 'ws://localhost:5000/ws/inventory';
   }
 
-  connect() {
+  // Connect to a specific WebSocket endpoint
+  connect(endpoint?: string) {
     if (this.socket) {
       return;
     }
 
+    const wsUrl = endpoint ? 
+      (import.meta.env.VITE_WS_URL || 'ws://localhost:5000') + endpoint : 
+      this.url;
+
     this.updateStatus('connecting');
-    this.socket = new WebSocket(this.url);
+    this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = this.handleOpen.bind(this);
     this.socket.onmessage = this.handleMessage.bind(this);
@@ -77,6 +81,26 @@ class WebSocketClient {
         );
       }
     };
+  }
+
+  // Add method to send messages to the server
+  send(messageType: string, payload: any) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      console.error('Cannot send message: WebSocket is not connected');
+      return false;
+    }
+
+    try {
+      const message: WebSocketMessage = {
+        type: messageType,
+        payload
+      };
+      this.socket.send(JSON.stringify(message));
+      return true;
+    } catch (error) {
+      console.error('Error sending WebSocket message:', error);
+      return false;
+    }
   }
 
   private handleOpen() {
@@ -140,5 +164,10 @@ class WebSocketClient {
   }
 }
 
-// Create singleton instance
-export const wsClient = new WebSocketClient();
+// Create two singleton instances for different WebSocket endpoints
+export const inventoryWsClient = new WebSocketClient();
+export const wasteTrackingWsClient = new WebSocketClient();
+
+// Export the original wsClient for backward compatibility
+export const wsClient = inventoryWsClient;
+
